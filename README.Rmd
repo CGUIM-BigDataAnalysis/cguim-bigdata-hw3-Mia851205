@@ -2,68 +2,72 @@
 title: "長庚大學 大數據分析方法 作業三"
 output: github_document
 ---
-
-## 作業說明 （繳交時請直接刪除這個章節）
-
-作業目的：練習初級爬蟲，並將爬蟲結果整理成資料框data.frame
-
-依下列指示，完成網站內文分析：
-
-- 爬取指定網站內容
-    - 學號結尾 0,4,8:[Ptt Tech_Job 版](https://www.ptt.cc/bbs/Tech_Job/index.html)
-    - 學號結尾 1,5,9:[Ptt NBA 版](https://www.ptt.cc/bbs/NBA/index.html)
-    - 學號結尾 2,6:[Ptt LoL 版](https://www.ptt.cc/bbs/LoL/index.html)
-    - 學號結尾 3,7:[Ptt movie 版](https://www.ptt.cc/bbs/movie/index.html)
-    
-- 試著爬出**至少100篇**文章（`30pt`）的**標題**、**推文數**與**作者ID**（各`10pt`）
-    - 資料框欄位名稱：
-        - **標題**：Title
-        - **推文數**：PushNum
-        - **作者ID**：Author
-    - 一頁只有20篇，該怎麼辦？
-        - 提示：使用for + rbind()將分批爬取出的資料結合
-        - 範例：dataframeAll<-rbind(dataframe1,dataframe2) 
-        - 參考：[6.6 資料組合](http://yijutseng.github.io/DataScienceRBook/manipulation.html#section-6.6)
-    
-- 將爬取出的資料輸出至Markdown報告中（`10pt`）
-    - 使用knitr::kable(資料框物件)整理輸出
-    
-- 用文字搭配程式碼解釋爬蟲結果 
-    - 共爬出幾篇文章標題？（程式碼與文字解釋各`5pt`）
-        - dim(), nrow(), str()皆可
-    - 哪個作者文章數最多？（程式碼與文字解釋各`5pt`）
-        - table()
-    - 其他爬蟲結果解釋（`10pt`）
-        - 試著找出有趣的現象，不一定要用程式碼搭配解釋，也可只用文字
-
-    
-
 ## 網站資料爬取
 ```{r}
-#這是R Code Chunk
-library(rvest) ##第一次使用要先安裝 install.packages("rvest")
-##read_html
-##html_nodes
-##html_text
+##install.packages("rvest") ##安裝
+library(rvest) ##載入
+dataframeAll=NULL
+for(i in 5289:5299){
+url=paste0("http://www.ptt.cc/bbs/movie/index",i,".html",sep='')
+PTT_Title = read_html(url) %>% html_nodes(".title") %>% html_text()
+PTT_PushNum = read_html(url) %>% html_nodes(".nrec") %>% html_text()
+PTT_Author = read_html(url) %>% html_nodes(".author") %>% html_text()
+dataframe = data.frame(title = PTT_Title, PushNum=PTT_PushNum, Author=PTT_Author)
+dataframeAll<-rbind(dataframeAll,dataframe)
+}
 ```
 
 ## 爬蟲結果呈現
 ```{r}
-#這是R Code Chunk
-knitr::kable(iris) ##請將iris取代為上個步驟中產生的爬蟲資料資料框
+knitr::kable(
+    dataframeAll[1:120,c("title","PushNum","Author")])
 ```
 
 ## 解釋爬蟲結果 
 ```{r}
-#這是R Code Chunk
+##install.packages("jsonlite")
+library(jsonlite)
+myjson <- toJSON(dataframeAll)
+str(dataframeAll)
+table(dataframeAll$ Author)
 ```
 
-解釋解釋解釋解釋
+(1)總共爬出220 篇文章，裡面共有3個變數:title、PushNum、Author
+(2)沒有名字的作者最多，共有15篇沒屬名的文章，有屬名的文章以jay5566的文章最多，共9篇
 
+## 前30頁vs.後30頁爬蟲結果&解釋
 ```{r}
-#這是R Code Chunk
+dataframePAll1=NULL
+dataframePAll2=NULL
+for(i in 1:30){
+  url=paste0("http://www.ptt.cc/bbs/movie/index",i,".html",sep='')
+  PTT_PushNum = read_html(url) %>% html_nodes(".nrec") %>% html_text()
+  dataframeP1 = data.frame(PushNum = PTT_PushNum)
+  dataframePAll1<-rbind(dataframePAll1,dataframeP1)
+}
+for(i in 5270:5300){
+  url=paste0("http://www.ptt.cc/bbs/movie/index",i,".html",sep='')
+  PTT_PushNum = read_html(url) %>% html_nodes(".nrec") %>% html_text()
+  dataframeP2 = data.frame(PushNum = PTT_PushNum)
+  dataframePAll2<-rbind(dataframePAll2,dataframeP2)
+}
+table(dataframePAll1)
+table(dataframePAll2)
 ```
 
-解釋解釋解釋解釋
+dataframePAll1裡面存放的是最舊的30頁文章的推文數，dataframePAll2裡面存放的是最新的30頁文章推文數(也就是最近的30篇文章)，由table()的數量統計來看最舊與最新的推文數，即使PTT現在有點落寞了，但是推噓文數卻比以前多，可以推測出，最近的人們比較會表達他們對文章的感覺，喜歡的話就會推那篇文章，甚至在dataframePAll2裡推文數超過100個的文章也高達12篇(在PTT裡以"爆"來表示)，此外，在dataframePAll2裡也有篇噓文數超過30個的文章(在PTT裡以"X3"來表示)，由此推測現在的人們比較會對作者表達他們對此文章的感覺
 
-人工結論與解釋解釋解釋解釋解釋解釋解釋
+## 228連假爬蟲結果&解釋
+```{r}
+dataframeDateAll=NULL
+for(i in 5151:5180){
+  url=paste0("http://www.ptt.cc/bbs/movie/index",i,".html",sep='')
+  PTT_Date = read_html(url) %>% html_nodes(".date") %>% html_text()
+  dataframeDate = data.frame(Date = PTT_Date)
+  dataframeDateAll<-rbind(dataframeDateAll,dataframeDate)
+}
+table(dataframeDateAll$ Date)
+```
+
+2/25-2/28為本國的228假期的四天連假，此段落程式碼是用來分析發文的時間，很明顯的，在2/27、2/28達到了發文數的巔峰，由此數據可推測，許多ppt的用戶在2/25當天尚未真正的放假，直到2/27、2/28兩天才有較空閒的時間上PTT
+
